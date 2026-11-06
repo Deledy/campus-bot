@@ -1,0 +1,98 @@
+# ─────────────────────────────────────────────────────
+# 校园机器人 · 主配置
+# 密钥全部在 .env，这里只放业务参数
+# ─────────────────────────────────────────────────────
+
+# 机器人清单：想加几个就加几个，代码不用改。
+# 新增一个机器人 = 这里加一段 + 在 .env 填三个变量（见 .env.example）。
+#
+# 字段说明：
+#   label      显示名，只用于日志和提示
+#   handler    这个机器人发什么：
+#                menu —— 每天读腾讯文档食谱，拼成固定格式（menu/scripts/run_daily.py）
+#                text —— 把 common/inbox/<键名>/ 里最早一份 .txt/.md 发出去（common/scripts/run_text.py）
+#                reader —— 操前小读，生成 docx（reader/scripts/run_reader.py）
+#   schedule   服务器定时，24 小时制 "HH:MM"；留空 = 不定时，只能手动发
+#   inbox      text 机器人的稿子目录（相对 common/），默认 common/inbox/<键名>
+#   *_env      凭据在 .env 里的变量名；不写就按约定
+#                BOT_<键名大写>_APPID / _SECRET / _GROUP_OPENID
+#
+# 注意：即使多个机器人在同一个群，group_openid 也各自不同（openid 按机器人区分）。
+bots:
+  menu:
+    label: "食谱机器人"
+    handler: menu
+    schedule: "09:50"
+    # 凭据按约定取名，实际值写进 .env
+    appid_env: BOT_MENU_APPID
+    secret_env: BOT_MENU_SECRET
+    group_env: BOT_MENU_GROUP_OPENID
+
+  notice:
+    label: "通知机器人"
+    handler: text
+    schedule: ""          # 留空 = 不自动发；想定时就填 "13:00" 这样的时间
+    inbox: inbox/notice
+    appid_env: BOT_NOTICE_APPID
+    secret_env: BOT_NOTICE_SECRET
+    group_env: BOT_NOTICE_GROUP_OPENID
+
+  reader:
+    label: "操前小读机器人"
+    handler: reader       # 群里 @ 它 → 生成一期 docx 并回传（常驻进程，不用 schedule）
+    schedule: ""          # 留空；reader 只看群消息，不配定时
+    appid_env: BOT_READER_APPID
+    secret_env: BOT_READER_SECRET
+    group_env: BOT_READER_GROUP_OPENID
+
+  # ── 再加一个机器人，照下面抄一段即可（同时去 .env 填 BOT_HELP_* 三个变量）──
+  # help:
+  #   label: "答疑机器人"
+  #   handler: text
+  #   schedule: "18:30"
+  #   appid_env: BOT_HELP_APPID
+  #   secret_env: BOT_HELP_SECRET
+  #   group_env: BOT_HELP_GROUP_OPENID
+
+send:
+  # true 时只打印不真的发消息（所有机器人共用）
+  dry_run: false
+  # 发送内容固定为：当日午餐 + 当日晚餐 + 次日早餐（见 send_qq.build_message）
+  # 当天没有午餐也没有晚餐 → 什么都不发（周末/假期自动静默）
+  # 每个机器人几点发，写在上面各自的 schedule 里
+
+# 操前小读：知识点在 reader/knowledge/books/<书名>/topics.json，图片在 reader/knowledge/assets/
+# 新增一册：reader/knowledge/books.json 里登记（code/dir/grade/chapters），再建目录放 topics.json
+reader:
+  book: ""                # 只从这一册抽（必修一/必修二/选择性必修一…）；留空 = 全库
+  grade: ""               # 只从这一年级抽（高一/高二/高三）；留空 = 不限
+  per_issue: 1            # 每次只出 1 个完整知识点，保证内容不被拆散
+  max_print_lines: 0      # 0 = 不按版面裁剪；一个知识点完整出刊
+  avoid_recent: 10        # 最近多少期出过的知识点不再重复
+  title_pt: 12            # 标题字号（黑体加粗居中）
+  body_pt: 12             # 正文字号：小四（12 磅）
+  line_spacing: 1.0       # 单倍行距
+  margin_cm: 2.0          # 页边距（上下左右相同）
+  figure_width_cm: 6      # 图片默认宽度；正文多时会再自动缩小
+  figure_max_height_cm: 4  # 图片高度上限，避免一张图吃掉整格
+  out_dir: "out"          # 生成的 docx 放这里（相对 reader/，即 reader/out）
+
+# 每周把食谱截图放进这个目录（相对项目根）
+ingest:
+  inbox_dir: "menu/inbox"
+
+# 腾讯文档 —— 唯一数据源
+tencent_doc:
+  sheet_name: "智能表1"
+
+# fileID / sheetID / MCP token 都在 .env：
+#   TENCENT_DOC_FILE_ID=NhuIfHdfFsNp
+#   TENCENT_DOC_SHEET_ID=t00i2h
+#   TENCENT_MCP_TOKEN=...
+
+# 云服务器（部署与检查用）
+deploy:
+  ssh_host: "root@39.96.63.120"
+  ssh_port: 22
+  remote_dir: "/opt/campus-bot"
+  ssh_key: "C:/文档/桌面常用临时文件/Interactive-Webpage-for-Geography-Teaching/aliyun2.pem"

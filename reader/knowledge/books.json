@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "_note": "册清单：dir=reader/knowledge/books 下的目录名，code=专题 id 前缀，chapters=该册应有章节数（只用于覆盖度报告）",
+  "books": [
+    {"code": "bx1", "dir": "必修一", "name": "必修一", "grade": "高一", "chapters": 6},
+    {"code": "bx2", "dir": "必修二", "name": "必修二", "grade": "高一", "chapters": 4, "note": "第五章 环境与发展 原文无内容，用户确认跳过"},
+    {"code": "xx1", "dir": "选择性必修一", "name": "选择性必修一", "grade": "高二", "chapters": 5},
+    {"code": "xx2", "dir": "选择性必修二", "name": "选择性必修二", "grade": "高二", "chapters": 4},
+    {"code": "xx3", "dir": "选择性必修三", "name": "选择性必修三", "grade": "高三", "chapters": 4},
+    {"code": "gz", "dir": "高三复习", "name": "高三复习专题", "grade": "高三", "chapters": null}
+  ]
+}

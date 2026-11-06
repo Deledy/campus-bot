@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# 密钥：绝不入库（示例文件 common/.env.example 保留）
+common/.env
+.env
+
+# 运行态（服务器/本机各自生成）
+logs/
+menu/data/
+reader/data/
+reader/out/
+
+# 本地工具与 IDE
+.trae/
+.workbuddy/
+.screenshots/
+.vscode/
+.idea/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
