@@ -7,6 +7,7 @@
         label: "食谱机器人"
         handler: menu          # menu = 每日食谱；text = 发 common/inbox/<键名>/ 的稿子
         schedule: "09:50"      # 服务器定时；留空 = 手动
+        listen: true           # 同时常驻监听群 @（menu 用来回本周食谱）
         appid_env: BOT_MENU_APPID
         secret_env: BOT_MENU_SECRET
         group_env: BOT_MENU_GROUP_OPENID
@@ -154,6 +155,16 @@ def bot_inbox(name: str) -> Path:
 def bot_schedule(name: str) -> str:
     """服务器定时时间（HH:MM）；空字符串表示不定时。"""
     return str(bot_config(name).get("schedule") or "").strip()
+
+
+def bot_listen(name: str) -> bool:
+    """这个机器人是否常驻监听群 @。
+
+    handler=reader 天生常驻；其他 handler 需要在 config 里写 listen: true。
+    """
+    if bot_handler(name) == "reader":
+        return True
+    return bool(bot_config(name).get("listen"))
 
 
 def _value(env_name: str, field: str, name: str) -> str:

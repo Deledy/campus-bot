@@ -23,8 +23,10 @@ ENTRY = {
     "text": "common/scripts/run_text.py",
 }
 
-# handler -> 常驻进程（等群事件，不配 timer）
+# handler -> 常驻进程（等群 @ 事件）。只有 config 里 listen 为 true 时才启用；
+# reader 天生常驻。同一个机器人可以「常驻 + 定时」并存，各自一个 service。
 DAEMON = {
+    "menu": "menu/scripts/serve_menu.py",
     "reader": "reader/scripts/serve_reader.py",
 }
 
@@ -72,7 +74,7 @@ Description=Daily {time} push for campus bot {name}
 OnCalendar=*-*-* {time}:00
 Persistent=true
 AccuracySec=1min
-Unit=campus-bot-{name}.service
+Unit=campus-bot-{unit}.service
 
 [Install]
 WantedBy=timers.target
@@ -103,44 +105,57 @@ def main() -> int:
         handler = bots.bot_handler(name)
         label = str(bots.bot_config(name).get("label") or name)
         schedule = bots.bot_schedule(name)
-        daemon = DAEMON.get(handler)
-        if not daemon and handler not in ENTRY:
+        daemon = DAEMON.get(handler) if bots.bot_listen(name) else None
+        scheduled = ENTRY.get(handler)
+
+        if not daemon and not scheduled:
             print(f"  {name}：handler={handler} 没有可用入口，跳过")
             continue
-        if schedule and not daemon and not VALID_TIME.match(schedule):
+        if scheduled and schedule and not VALID_TIME.match(schedule):
             raise SystemExit(
                 f"机器人「{name}」的 schedule={schedule!r} 不对，要写成 HH:MM（例如 09:50）"
             )
-        if daemon and schedule:
+        if daemon and schedule and not scheduled:
             print(f"  {name}：常驻服务不需要 schedule，已忽略 {schedule!r}")
+            schedule = ""
 
-        template = SERVICE_DAEMON if daemon else SERVICE
-        (out / f"campus-bot-{name}.service").write_text(
-            template.format(
-                label=label,
-                name=name,
-                user=args.user,
-                app_dir=args.app_dir.rstrip("/"),
-                entry=daemon or ENTRY[handler],
-            ),
-            encoding="utf-8",
-        )
+        common = {
+            "label": label,
+            "name": name,
+            "user": args.user,
+            "app_dir": args.app_dir.rstrip("/"),
+        }
 
-        if schedule and not daemon:
-            (out / f"campus-bot-{name}.timer").write_text(
-                TIMER.format(time=schedule, name=name), encoding="utf-8"
+        if daemon:
+            (out / f"campus-bot-{name}.service").write_text(
+                SERVICE_DAEMON.format(entry=daemon, **common), encoding="utf-8"
             )
+
+        if scheduled:
+            # 常驻和定时并存时，定时任务用独立的 <name>-push.service，
+            # timer 文件名仍是 campus-bot-<name>.timer，管理习惯不变。
+            push = f"{name}-push" if daemon else name
+            (out / f"campus-bot-{push}.service").write_text(
+                SERVICE.format(entry=scheduled, **common), encoding="utf-8"
+            )
+            if schedule:
+                (out / f"campus-bot-{name}.timer").write_text(
+                    TIMER.format(time=schedule, name=name, unit=push),
+                    encoding="utf-8",
+                )
 
     print("已生成：")
     for name in names:
         handler = bots.bot_handler(name)
-        if handler in DAEMON:
-            print(f"  campus-bot-{name}.service（常驻）")
-            continue
-        if handler not in ENTRY:
-            continue
         schedule = bots.bot_schedule(name)
-        print(f"  campus-bot-{name}.service" + (f" + timer {schedule}" if schedule else "（手动）"))
+        daemon = DAEMON.get(handler) if bots.bot_listen(name) else None
+        scheduled = ENTRY.get(handler)
+        if daemon:
+            print(f"  campus-bot-{name}.service（常驻）")
+        if scheduled:
+            push = f"{name}-push" if daemon else name
+            when = f" + timer {schedule}" if schedule else "（手动）"
+            print(f"  campus-bot-{push}.service{when}")
     return 0
 
 

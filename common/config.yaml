@@ -13,6 +13,8 @@
 #                text —— 把 common/inbox/<键名>/ 里最早一份 .txt/.md 发出去（common/scripts/run_text.py）
 #                reader —— 操前小读，生成 docx（reader/scripts/run_reader.py）
 #   schedule   服务器定时，24 小时制 "HH:MM"；留空 = 不定时，只能手动发
+#   listen     是否常驻监听群 @。menu 配 true 后，@ 它会回传本周完整食谱；
+#              常驻与定时互不影响（同一机器人可同时有 service + timer）
 #   inbox      text 机器人的稿子目录（相对 common/），默认 common/inbox/<键名>
 #   *_env      凭据在 .env 里的变量名；不写就按约定
 #                BOT_<键名大写>_APPID / _SECRET / _GROUP_OPENID
@@ -23,6 +25,7 @@ bots:
     label: "食谱机器人"
     handler: menu
     schedule: "09:50"
+    listen: true          # 群里 @ 它 → 回传本周完整食谱（menu/scripts/serve_menu.py）
     # 凭据按约定取名，实际值写进 .env
     appid_env: BOT_MENU_APPID
     secret_env: BOT_MENU_SECRET

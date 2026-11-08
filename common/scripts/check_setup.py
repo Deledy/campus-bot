@@ -364,9 +364,9 @@ def check_server() -> None:
 
     import bots
 
-    # 5.2 常驻服务：reader 这类没有 timer，检查进程是否在跑
+    # 5.2 常驻服务：监听群 @ 的机器人（reader / menu），检查进程是否在跑
     for name in bots.list_bots():
-        if bots.bot_handler(name) != "reader":
+        if not bots.bot_listen(name):
             continue
         cmd2 = ["ssh", *key_args, "-p", port, "-o", "BatchMode=yes", host,
                 f"systemctl is-active campus-bot-{name}.service 2>/dev/null || echo inactive"]
@@ -374,7 +374,7 @@ def check_server() -> None:
             r2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=20)
             state = r2.stdout.strip().splitlines()[-1] if r2.stdout.strip() else "unknown"
             if state == "active":
-                item(OK, f"{name} 常驻服务在跑", "群里 @ 即可出刊")
+                item(OK, f"{name} 常驻服务在跑", "群里 @ 即可回复")
             else:
                 item(WARN, f"{name} 常驻服务未启动", state)
                 next_steps.append(

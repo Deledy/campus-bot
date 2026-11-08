@@ -4,7 +4,7 @@ QQ 机器人数量可配置（清单在 `config.yaml` 的 `bots` 段），目前
 
 | 机器人 | 负责 | 触发方式 |
 |---|---|---|
-| **食谱机器人** `menu` | 每天发当天食谱 | 服务器每天 09:50 |
+| **食谱机器人** `menu` | 每天发当天食谱；@ 它查本周完整食谱 | 服务器每天 09:50 + 群里 @ |
 | **通知机器人** `notice` | 其他事项（通用文本通道） | 手动，或给它配 `schedule` |
 | **操前小读机器人** `reader` | 生成并回传小读 docx | 群里 @ 它（常驻监听） |
 
@@ -34,6 +34,21 @@ WorkBuddy 自动化（每周日 20:00，或你随时手动触发）
 | 周六 | 静默（除非调休上课） |
 | **周日** | 静默（晚餐已在周五发过） |
 
+### 群里 @ 查本周食谱
+
+@食谱机器人（内容随意）→ 回一条「本周食谱」，从周一到周日逐天列出
+已录入的早餐 / 午餐 / 晚餐；每道菜前面带 emoji（主食、荤菜、蔬菜、汤、水果…），
+没安排的日期显示「无餐次安排」。走被动回复，不占主动消息额度。
+
+本周表格里还没有数据时，回「本周表格里还没有食谱数据」。
+QQ 开放平台需已订阅群聊消息事件（与 reader 相同的 `1 << 25`），否则收不到 @。
+
+本地预览（只打印，不连群）：
+
+```bash
+.venv\Scripts\python.exe menu\scripts\serve_menu.py --preview
+```
+
 ---
 
 ## 机器人（可配置多个）
@@ -43,8 +58,9 @@ WorkBuddy 自动化（每周日 20:00，或你随时手动触发）
 | 字段 | 作用 |
 |---|---|
 | `label` | 显示名，只用于日志和提示 |
-| `handler` | `menu` = 每日食谱；`text` = 发 inbox 里的稿子 |
+| `handler` | `menu` = 每日食谱；`text` = 发 inbox 里的稿子；`reader` = 操前小读 |
 | `schedule` | 服务器定时，`HH:MM`；留空 = 手动 |
+| `listen` | `true` = 常驻监听群 @（menu 用它回本周食谱）；可与 `schedule` 并存 |
 | `inbox` | text 机器人取稿目录，默认 `common/inbox/<键名>` |
 
 凭据放 `common/.env`，按 `BOT_<键名大写>_APPID / _SECRET / _GROUP_OPENID` 命名；
@@ -185,6 +201,7 @@ tail -f /opt/campus-bot/logs/reader.log
 |---|---|---|
 | `menu/scripts/save_menu.py` | **JSON → 腾讯文档**，含硬校验 | WorkBuddy 读完图后调用 |
 | `menu/scripts/run_daily.py` | **腾讯文档 → QQ 群**（`handler: menu` 的机器人） | 服务器按 `schedule` |
+| `menu/scripts/serve_menu.py` | **群里 @ → 回传本周完整食谱**（含 emoji，常驻） | 服务器 systemd |
 | `common/scripts/run_text.py` | **文本 → QQ 群**（任意 `handler: text` 的机器人） | 手动，或按 `schedule` |
 | `common/scripts/check_setup.py` | 全链路自检，告诉你缺什么 | 出问题时 |
 | `reader/scripts/serve_reader.py` | **群里 @ → 生成 docx → 回传群文件**（常驻） | 服务器 systemd |
@@ -193,6 +210,7 @@ tail -f /opt/campus-bot/logs/reader.log
 
 公共模块在 `common/py/`：`bots.py`（多机器人清单 / 凭据 / token / 按机器人发送）、
 `doc_client.py`（腾讯文档 MCP 客户端）、`send_qq.py`（QQ 发送与消息排版）、
+`qq_listener.py`（群 @ 事件监听：鉴权 / 心跳 / 重连 / 去重）、
 `common.py`（配置、路径、日志）。
 
 写入的最小 JSON 长这样，`weekday`、周起止日期都会自动补：
@@ -228,6 +246,8 @@ ssh -i "C:/文档/桌面常用临时文件/Interactive-Webpage-for-Geography-Tea
 - 程序在 `/opt/campus-bot`
 - 每个机器人一份 `campus-bot-<键名>.service`，由 `common/deploy/server/render_units.py`
   按 `common/config.yaml` 生成；`schedule` 非空的再配一个同名 `.timer`
+- `listen: true` 的机器人（menu）额外常驻：`campus-bot-menu.service` 监听群 @，
+  定时推送单独用 `campus-bot-menu-push.service`（由 `campus-bot-menu.timer` 触发）
 - 日志 `/opt/campus-bot/logs/<键名>.log`（如 `menu.log`、`notice.log`）
 
 ```bash
@@ -248,8 +268,9 @@ tail -20 /opt/campus-bot/logs/menu.log
 ```
 
 > ⚠️ 服务器上那份是**独立的一份代码**，跟这个文件夹不同步。
-> 只有你改了 `run_daily.py` / `run_text.py` / `serve_reader.py` / `run_reader.py` /
-> `send_qq.py` / `bots.py` / `doc_client.py` 或增删了机器人，才需要重新上传并重跑 `install.sh`。
+> 只有你改了 `run_daily.py` / `run_text.py` / `serve_menu.py` / `serve_reader.py` /
+> `run_reader.py` / `send_qq.py` / `bots.py` / `doc_client.py` 或增删了机器人，
+> 才需要重新上传并重跑 `install.sh`。
 > 日常改食谱数据**完全不用碰服务器**（数据在腾讯文档里）。
 >
 > 从旧版 `school-menu-bot` 升级时，重新跑一次 `install.sh`：
@@ -304,6 +325,7 @@ tail -20 /opt/campus-bot/logs/menu.log
 │   │   ├── common.py           配置 / 路径 / 日志
 │   │   ├── bots.py             机器人清单 / 凭据 / token / 发送
 │   │   ├── send_qq.py          QQ 发送与排版
+│   │   ├── qq_listener.py      群 @ 事件监听（鉴权/心跳/重连/去重）
 │   │   └── doc_client.py       腾讯文档 MCP 客户端
 │   ├── scripts/
 │   │   ├── run_text.py         ★ 文本 → QQ（handler: text 的机器人）
@@ -318,6 +340,7 @@ tail -20 /opt/campus-bot/logs/menu.log
 │   ├── scripts/
 │   │   ├── save_menu.py        ★ JSON → 腾讯文档
 │   │   ├── run_daily.py        ★ 腾讯文档 → QQ（handler: menu）
+│   │   ├── serve_menu.py       ★ 常驻：群里 @ → 回传本周完整食谱
 │   │   └── preview_style.py    本地预览消息样式
 │   ├── inbox/                  ★ 每周把截图丢这里
 │   │   └── processed/          已处理的截图与 JSON，按时间戳归档
